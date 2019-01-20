@@ -1,12 +1,10 @@
 ﻿@page "/viewrepo/{ItemId:int}/{ViewPath}"
-﻿@using System.Text
-@using System.Diagnostics
 @using System.IO
-@using System.Security.Cryptography
-@using System.Text
+@using Microsoft.AspNetCore.Blazor.Services
 @using tbp.Shared.Models
+﻿@using System.Text
 @inject HttpClient Http
-@inject Microsoft.AspNetCore.Blazor.Services.IUriHelper UriHelper
+@inject IUriHelper UriHelper
 
 <div class="container">
 
@@ -14,20 +12,6 @@
     {
         <Spinner/>
     }
-    @*else if (currentDocId != -1)
-    {
-        GetCurrentFileName(currentDocId);
-
-        <h4 class="mb-0 mt-0">@repo.Name</h4>
-        <small>@repo.Description</small>
-
-        var currentPath = ViewPath.Replace("root", "");
-        currentPath = currentPath.Replace(folderUrlSeparator, "/");
-
-        <h6 class="text-muted mt-3">@repo.Name@currentPath@currentFileName</h6>
-        
-        <FileViewer ItemId="@currentDocId"/>
-    }*@
     else
     {
         <h4 class="mb-0 mt-0">@repo.Name</h4>
@@ -57,27 +41,23 @@
                 <Spinner/>
             }
             else
-            { 
+            {
                 var currentPath = ViewPath.Replace("root", "");
                 currentPath = currentPath.Replace(folderUrlSeparator, "/");
 
                 <div class="d-flex justify-content-between align-items-center mt-4">
-                   
+
                     <div class="d-flex">
                         <a class="btn btn-outline-secondary btn-sm mr-3 my-auto" href="/">
-                            <FabricIcon Glyph="Back" /> <span>All repositores</span>
+                            <FabricIcon Glyph="Back"/> <span>All repositores</span>
                         </a>
                         <h6 class="text-muted align-middle my-auto">@repo.Name@currentPath</h6>
                     </div>
 
                     <div class="d-flex">
-                        
-                      
-
-                     
 
                         <div class="input-group mx-3" style="width: 12rem">
-                <input type="text" class="form-control" aria-label="Folder name" aria-describedby="add-folder-btn" bind="@NewFolderName" placeholder="New folder" />
+                            <input type="text" class="form-control" aria-label="Folder name" aria-describedby="add-folder-btn" bind="@NewFolderName" placeholder="New folder"/>
                             <div class="input-group-append">
                                 <button class="btn btn-outline-secondary" type="button" id="add-folder-btn" onclick="@AddFolder">Add</button>
                             </div>
@@ -103,9 +83,9 @@
                         <li class="list-group-item d-flex justify-content-center align-items-center py-5">
                             <div class="text-center">
                                 <h1>
-                                    <FabricIcon Glyph="BorderDot"/>
+                                    <FabricIcon Glyph="FocalPoint"/>
                                 </h1>
-                                <i>So empty in here...</i>
+                                <i>You don't want this to be empty, do you?</i>
                                 <br/>
                                 <button class="btn btn-primary mt-3" onclick="@SelectFiles"><FabricIcon Glyph="VersionControlPush"/> Push files</button>
                             </div>
@@ -122,7 +102,8 @@
                                                                                                                          currentPath = ViewPath + folderUrlSeparator + document.FileName;
 
                                                                                                                          var link = $"/viewrepo/{document.RepoId}/{currentPath}";
-                                                                                                                         updated = false;
+
+                                                                                                                         docs = null;
                                                                                                                          UriHelper.NavigateTo(link);
                                                                                                                      })">
 
@@ -179,7 +160,7 @@
 @functions
 {
 
-        const string folderUrlSeparator = "_";
+    const string folderUrlSeparator = "_";
 
     [Parameter]
     private int ItemId { get; set; }
@@ -201,17 +182,14 @@
     {
         LoadUserData();
 
-    //MonacoEditor.LastPage = $"/viewrepo/{ItemId}";
+        //MonacoEditor.LastPage = $"/viewrepo/{ItemId}";
     }
-
-    bool updated;
 
     protected override void OnAfterRender()
     {
-        if (!updated || ViewPath == "root")
+        if (docs == null)
         {
             LoadDocuments();
-            updated = true;
         }
     }
 
@@ -223,11 +201,14 @@
 
     private async void LoadUserData()
     {
-        var cookie = await CookieManager.GetData("currentUser");
-        cookie = cookie == "" ? "-1" : cookie;
-        LoggedInUser = await Http.GetJsonAsync<User>($"api/User/{cookie}");
+        if (LoggedInUser == null)
+        {
+            var cookie = await CookieManager.GetData("currentUser");
+            cookie = cookie == "" ? "-1" : cookie;
+            LoggedInUser = await Http.GetJsonAsync<User>($"api/User/{cookie}");
 
-        StateHasChanged();
+            StateHasChanged();
+        }
 
         LoadRepo();
         LoadDocuments();
@@ -235,29 +216,24 @@
 
     public async void LoadRepo()
     {
+        if (repo != null) return;
+
         repo = await Http.GetJsonAsync<Repository>($"api/Repository/{ItemId}");
         StateHasChanged();
     }
 
     public async void LoadDocuments()
     {
-        docs?.Clear();
+        if (docs != null) return;
 
-        if (ViewPath == "root")
-        {
-            docs = await Http.PostJsonAsync<List<Document>>($"api/Document/inrepo/{ItemId}", "/");
+        var newPath = ViewPath.Replace("root", "");
+        newPath = newPath.Replace(folderUrlSeparator, "/");
 
-            StateHasChanged();
-        }
-        else
-        {
-            var newPath = ViewPath.Replace("root", "");
-            newPath = newPath.Replace(folderUrlSeparator, "/");
+        if (ViewPath == "root") newPath = "/";
 
-            docs = await Http.PostJsonAsync<List<Document>>($"api/Document/inrepo/{ItemId}", newPath);
+        docs = await Http.PostJsonAsync<List<Document>>($"api/Document/inrepo/{ItemId}", newPath);
 
-            StateHasChanged();
-        }
+        StateHasChanged();
     }
 
     private async void DeleteRepo()
@@ -274,15 +250,17 @@
     List<Document> documents;
     //List<Session> documents;
     FileSelect fileSelect;
-    int totalFiles = 0;
-    int remainingFiles = 0;
+    int totalFiles;
+    int remainingFiles;
 
 
     public async void RemoveDocument(int id)
     {
         await Http.DeleteAsync($"api/Document/{id}");
 
-        LoadDocuments();
+        docs = null;
+
+        StateHasChanged();
     }
 
     FileSelect multiFileSelect;
@@ -297,7 +275,7 @@
 
         if (ViewPath == "root") currentPath = "/";
 
-        await Http.PostJsonAsync("api/Document", (Object) new Document
+        await Http.PostJsonAsync("api/Document", new Document
         {
             FileName = NewFolderName,
             Path = currentPath,
@@ -305,24 +283,28 @@
             RepoId = repo.Id,
             Contents = ""
         });
-
-        LoadDocuments();
-
+        
         NewFolderName = "";
+
+        docs = null;
+
+        StateHasChanged();
     }
 
     private async void GoUpOne()
     {
-        updated = false;
-        
-        await Helpers.UpOneLevel();
+        var newPath = ViewPath.Substring(0, ViewPath.LastIndexOf("_"));
+
+        docs = null;
+
+        UriHelper.NavigateTo($"/viewrepo/{repo.Id}/{newPath}");
     }
 
     void SelectFiles()
     {
-        multiFileSelect.SelectFiles(async (selectedFiles) =>
+        multiFileSelect.SelectFiles(async selectedFiles =>
         {
-            loadFiles = selectedFiles.Select(file => new LoadedFile()
+            loadFiles = selectedFiles.Select(file => new LoadedFile
             {
                 SelectedFile = file,
                 IsLoaded = false,
@@ -363,8 +345,10 @@
             }
 
             loadFiles.Clear();
+            
+            docs = null;
 
-            LoadDocuments();
+            StateHasChanged();
         });
     }
 

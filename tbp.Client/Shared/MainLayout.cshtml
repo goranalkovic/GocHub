@@ -75,7 +75,7 @@
     <div class="container">
         <div class="row justify-content-between align-items-center py-2">
             <div class="col-8">
-                <span class="text-muted">CodeHub © Goran Alković, 2019</span> <br/>
+                <span class="text-muted">GocHub © Goran Alković, 2019</span> <br/>
                 <span class="text-muted">A project for the <em>Database Theory (Teorija baza podataka)</em> course.</span>
             </div>
             <div class="col-4 text-right">
@@ -134,7 +134,10 @@
 
         LoadData();
 
-        StateHasChanged();
+        //StateHasChanged();
+        
+        UriHelper.NavigateTo("/");
+
     }
 
     private async void PickUser()
@@ -151,7 +154,9 @@
             LoadData();
         }
 
-        StateHasChanged();
+        //StateHasChanged();
+
+        UriHelper.NavigateTo("/");
     }
 
 

@@ -18,7 +18,7 @@
 <div class="divided mt-3">
 
 
-    <div class="container">
+    <div class="container-fluid">
         <FileSelect ref="fileSelect"/>
 
         @if (repo != null && doc != null)
@@ -76,7 +76,7 @@
         }
 
     </div>
-    <div class="container">
+    <div class="container-fluid">
 
         @if (doc != null)
         {
@@ -100,7 +100,7 @@
                     {
                         //var docPrev = await Http.PostJsonAsync<Document>($"api/Document/prev/{doc.Id}", historyItem.SysEndTime);
 
-                        <a class="list-group-item list-group-item-action p-2 px-3" href="/viewdiff/@doc.Id/@docHistory.IndexOf(historyItem)"> From @historyItem.SysEndTime.ToShortDateString() @historyItem.SysEndTime.ToShortTimeString()</a>
+                        <a class="list-group-item list-group-item-action p-2 px-3" href="/viewdiff/@doc.Id/@docHistory.IndexOf(historyItem)"><small>From @Helpers.ToRelativeDate(historyItem.SysEndTime.ToLocalTime())</small></a>
                     }
                 </div>
             }
@@ -126,7 +126,7 @@
 
     private async void SaveChanges()
     {
-        doc.Contents = await MonacoEditor.GetData(editorId);
+        var newData = await MonacoEditor.GetData(editorId);
 
         await Http.PutJsonAsync($"api/Document/{ItemId}", (object) new Document
         {
@@ -134,31 +134,33 @@
             FileType = doc.FileType,
             FileName = doc.FileName,
             Path = doc.Path,
-            Contents = doc.Contents,
+            Contents = newData,
             RepoId = doc.RepoId
         });
 
-        doc = await Http.GetJsonAsync<Document>($"api/Document/{ItemId}");
-
-        await MonacoEditor.ChangeValue(editorId, Encoding.UTF8.GetString(Convert.FromBase64String(doc.Contents)));
+        LoadData();
 
         StateHasChanged();
     }
 
     private async void LoadData()
     {
+
         doc = await Http.GetJsonAsync<Document>($"api/Document/{ItemId}");
         docHistory = await Http.GetJsonAsync<List<Document>>($"api/Document/history/{ItemId}");
         docHistory = docHistory.Take(docHistory.Count - 1).ToList();
         repo = await Http.GetJsonAsync<Repository>($"api/Repository/{doc.RepoId}");
 
         StateHasChanged();
+
     }
 
     protected override async Task OnAfterRenderAsync()
     {
-        LoadData();
-
+        if (doc == null)
+        {
+            LoadData();
+        }
 
         if (!hasEditor && doc != null && !MonacoEditor.IsImage(doc.FileType))
         {
@@ -192,9 +194,7 @@
                     Contents = Convert.ToBase64String(fileContent)
                 });
 
-                doc = await Http.GetJsonAsync<Document>($"api/Document/{ItemId}");
-
-                await MonacoEditor.ChangeValue(editorId, Encoding.UTF8.GetString(Convert.FromBase64String(doc.Contents)));
+                LoadData();
 
                 StateHasChanged();
             }
