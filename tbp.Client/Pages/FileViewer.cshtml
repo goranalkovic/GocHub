@@ -43,10 +43,10 @@
 
     </div>
     <div class="container">
-        @if (doc != null)
+        @if (doc!= null)
         {
-            <small class="ml-2">
-                <em>Last modified</em>
+            <small class="ml-3">
+                <b>Last modified</b>
                 <em>@Helpers.ToRelativeDate(doc.SysStartTime)</em>
             </small>
             <br/>
@@ -83,7 +83,7 @@
                     @foreach (var historyItem in docHistory)
                     {
                         <li class="list-group-item">
-                            Valid from @historyItem.SysStartTime <br/> to @historyItem.SysEndTime <br/>
+                            Created @historyItem.SysStartTime <br/> Last modified @historyItem.SysEndTime <br/>
                             <button type="button" class="btn btn-secondary btn-sm"> <FabricIcon Glyph="DiffInline"/> Compare to current</button>
                         </li>
                     }
