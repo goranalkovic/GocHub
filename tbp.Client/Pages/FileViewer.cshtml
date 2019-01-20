@@ -43,7 +43,8 @@
 
     </div>
     <div class="container">
-        @if (doc!= null)
+
+        @if (doc != null)
         {
             <small class="ml-3">
                 <b>Last modified</b>
@@ -64,9 +65,10 @@
 
             <hr/>
 
-            <h5 class="text-primary">
+
+            <h6 class="text-primary">
                 <FabricIcon Glyph="BranchCompare"/> <span class="align-top">All commits</span>
-            </h5>
+            </h6>
 
             if (docHistory == null)
             {
@@ -78,16 +80,13 @@
             }
             else
             {
-                <ul class="list-group">
+                <div class="list-group" style="height: 30rem; overflow-y: scroll;">
 
                     @foreach (var historyItem in docHistory)
                     {
-                        <li class="list-group-item">
-                            Created @historyItem.SysStartTime <br/> Last modified @historyItem.SysEndTime <br/>
-                            <button type="button" class="btn btn-secondary btn-sm"> <FabricIcon Glyph="DiffInline"/> Compare to current</button>
-                        </li>
+                            <a class="list-group-item list-group-item-action p-2 px-3" href="/viewdiff/@doc.Id/@docHistory.IndexOf(historyItem)"> From @Helpers.ToRelativeDate(historyItem.SysEndTime)</a>
                     }
-                </ul>
+                </div>
             }
         }
     </div>
@@ -98,9 +97,11 @@
     string editorId = "editor-single";
 
     Document doc;
+    Document docPrev;
     List<Document> docHistory;
     bool hasEditor;
 
+  
     [Parameter]
     private int ItemId { get; set; }
 
@@ -114,8 +115,6 @@
         {
             Id = doc.Id,
             FileType = doc.FileType,
-            SysStartTime = doc.SysStartTime,
-            SysEndTime = doc.SysEndTime,
             FileName = doc.FileName,
             Path = doc.Path,
             Contents = doc.Contents,
@@ -139,7 +138,8 @@
 
     protected override async Task OnAfterRenderAsync()
     {
-        LoadData();
+    LoadData();
+
 
         if (!hasEditor && doc != null && !MonacoEditor.IsImage(doc.FileType))
         {

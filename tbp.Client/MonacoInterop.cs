@@ -10,7 +10,12 @@ namespace tbp.Client
         public static Task<bool> CreateEditor(string id, string language = "plaintext", string value = "") =>
             JSRuntime.Current.InvokeAsync<bool>("newEditor", id, language, value);
 
+        public static Task<bool> CreateDiffEditor(string id, string language = "plaintext", string originalValue = "", string modifiedValue = "") =>
+            JSRuntime.Current.InvokeAsync<bool>("newDiffEditor", id, language, originalValue, modifiedValue);
+
         public static Task<bool> RemoveEditor(string id) => JSRuntime.Current.InvokeAsync<bool>("removeEditor", id);
+
+        public static Task<bool> RemoveDiffEditor(string id) => JSRuntime.Current.InvokeAsync<bool>("removeDiffEditor", id);
 
         public static Task<bool> ChangeValue(string id, string newValue) =>
             JSRuntime.Current.InvokeAsync<bool>("setData", id, newValue);

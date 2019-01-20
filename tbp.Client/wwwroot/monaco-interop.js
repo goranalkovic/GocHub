@@ -1,5 +1,30 @@
 ﻿var editors = [];
+var globalDiffEditor = null;
+var globalDiffEditorId = null;
 
+window.newDiffEditor =
+    function(id, language, originalContent, modifiedContent) {
+
+        var diffEditor = monaco.editor.createDiffEditor(document.getElementById(id),
+            {
+                wordWrap: true,
+                roundedSelection: true,
+                fontFamily: "Fira Code",
+                fontLigatures: true,
+                fontSize: 11.5,
+                readOnly: true
+            });
+
+        diffEditor.setModel({
+            original: monaco.editor.createModel(modifiedContent, language),
+            modified: monaco.editor.createModel(originalContent, language)
+        });
+
+        globalDiffEditor = diffEditor;
+        globalDiffEditorId = id;
+
+        return true;
+    }
 
 
 window.newEditor =
@@ -76,6 +101,14 @@ window.removeEditor = function(id) {
     return true;
 }
 
+window.removeDiffEditor = function(id) {
+    globalDiffEditor.dispose();
+    globalDiffEditor = null;
+    globalDiffEditorId = null;
+
+    return true;
+}
+
 window.clearEditors = function() {
     editors.clear();
     return true;
@@ -83,6 +116,15 @@ window.clearEditors = function() {
 
 window.doesEditorExist = function(id) {
     const found = editors.find(e => e.id === id);
+
+    if (!found)
+        return false;
+    else 
+        return true;
+}
+
+window.doesDiffEditorExist = function(id) {
+    const found = id === globalDiffEditorId;
 
     if (!found)
         return false;

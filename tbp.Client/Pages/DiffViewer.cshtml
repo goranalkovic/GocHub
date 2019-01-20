@@ -1,0 +1,124 @@
+﻿@page "/viewdiff/{ItemId:int}/{OldDiff:int}"
+@inject HttpClient Http
+@inject Microsoft.AspNetCore.Blazor.Services.IUriHelper UriHelper
+@using System.Text
+@using tbp.Shared.Models
+@implements IDisposable
+
+<style>
+    .divided {
+        display: grid;
+        grid-template-columns: 1fr 20rem;
+        grid-column-gap: 1rem;
+    }
+</style>
+
+<div class="divided mt-3">
+    <div class="container">
+
+        @if (doc == null || docPrev == null)
+        {
+            <p>
+                <Spinner/>
+            </p>
+        }
+        else
+        {
+            <h1>Differences</h1>
+            <br/>
+            <h4>@doc.FileName</h4>
+            <br/>
+
+            <div class="d-flex justify-content-between">
+                <h6>Version from @Helpers.ToRelativeDate(docPrev.SysEndTime)</h6>
+                <h6>Current version</h6>
+            </div>
+
+            <div id="@diffEditorId" style="height: 600px; width: 900px" class="shadow-sm">
+            </div>
+        }
+
+    </div>
+    <div class="container">
+
+        @*<h4 class="text-primary">
+            <FabricIcon Glyph="DiffInline"/> <span class="align-top">Differences</span>
+        </h4>*@
+
+        <button class="btn btn-link text-success mt-2" type="button" onclick="@DiffKeepCurrent">
+            <FabricIcon Glyph="Accept"/> <span class="align-top">Keep current version</span>
+        </button>
+
+        <button class="btn btn-link text-info mt-2" type="button" onclick="@DiffRevert">
+            <FabricIcon Glyph="RevToggleKey"/> <span class="align-top">Revert to previous</span>
+        </button>
+
+
+    </div>
+</div>
+
+
+@functions {
+    string diffEditorId = "diff-editor-single";
+
+    Document doc;
+    Document docPrev;
+    List<Document> docHistory;
+
+    bool hasDiffViewer;
+
+    [Parameter]
+    private int ItemId { get; set; }
+
+    [Parameter]
+    private int OldDiff { get; set; }
+
+    private async void DiffRevert()
+    {
+        await Http.PutJsonAsync($"api/Document/{ItemId}", (object) new Document
+        {
+            Id = doc.Id,
+            FileType = doc.FileType,
+            FileName = doc.FileName,
+            Path = doc.Path,
+            Contents = docPrev.Contents,
+            RepoId = doc.RepoId
+        });
+
+        UriHelper.NavigateTo($"/viewrepo/{doc.RepoId}");
+    }
+
+    private async void DiffKeepCurrent()
+    {
+        UriHelper.NavigateTo($"/viewrepo/{doc.RepoId}");
+    }
+
+
+    private async void LoadDiffData()
+    {
+        doc = await Http.GetJsonAsync<Document>($"api/Document/{ItemId}");
+        docHistory = await Http.GetJsonAsync<List<Document>>($"api/Document/history/{ItemId}");
+
+        docPrev = await Http.PostJsonAsync<Document>($"api/Document/prev/{doc.Id}", docHistory[OldDiff].SysEndTime);
+
+
+        StateHasChanged();
+    }
+
+    protected override async Task OnAfterRenderAsync()
+    {
+        LoadDiffData();
+
+        if (!hasDiffViewer && doc != null && docPrev != null)
+        {
+            await MonacoEditor.CreateDiffEditor(diffEditorId, doc.FileType, Encoding.UTF8.GetString(Convert.FromBase64String(doc.Contents)), Encoding.UTF8.GetString(Convert.FromBase64String(docPrev.Contents)));
+            hasDiffViewer = true;
+        }
+    }
+
+    public void Dispose()
+    {
+        MonacoEditor.RemoveDiffEditor(diffEditorId);
+    }
+
+}

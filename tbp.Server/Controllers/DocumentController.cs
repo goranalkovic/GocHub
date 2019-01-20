@@ -65,6 +65,28 @@ namespace tbp.Server.Controllers
                         }).ToList();
         }
 
+
+        [HttpPost("prev/{id}")]
+        public Document GetPreviousVersion(int id, [FromBody] DateTime oldDate)
+        {
+            var sqlString =
+                $"SELECT * FROM document FOR SYSTEM_TIME AS OF '{oldDate:yyyy-MM-dd HH:mm:ss.fffffff}' WHERE id = {id}";
+            return _context.Document
+                .FromSql(sqlString).Select(
+                    doc =>
+                        new Document
+                        {
+                            FileType = doc.FileType,
+                            Id = doc.Id,
+                            FileName = doc.FileName,
+                            SysStartTime = doc.SysStartTime,
+                            Path = doc.Path,
+                            RepoId = doc.RepoId,
+                            SysEndTime = doc.SysEndTime,
+                            Contents = doc.Contents
+                        }).ToList().First();
+        }
+
         // GET api/<controller>/5
         [HttpGet("{id}")]
         public Document Get(int id)
