@@ -1,0 +1,64 @@
+﻿﻿
+
+@import url('open-iconic/font/css/open-iconic-bootstrap.min.css');
+
+@import url('https://rsms.me/inter/inter-ui.css');
+
+
+html, body, p, h1, h2, h3, h4, h5, b, i, em, button, input, a, ul, li {
+    font-family: 'Inter UI', sans-serif !important;
+}
+
+@supports (font-variation-settings: normal) {
+    html, body, p, h1, h2, h3, h4, h5, b, i, em, button, input, a, ul, li {
+        font-family: 'Inter UI var alt', 'Inter UI', sans-serif !important;
+    }
+}
+
+.ms-Icon {
+    display: inline-block !important;
+    font-family: FabricMDL2Icons !important;
+    font-style: normal !important;
+    font-weight: 400 !important;
+    speak: none !important;
+}
+
+.icon-btn-sm {
+    font-size: 1.09rem;
+}
+
+.icon-btn {
+    font-size: 1.12rem;
+}
+
+html { font-size: 0.9rem; }
+
+app {
+    display: grid;
+    grid-template-columns: 1fr;
+    grid-template-rows: auto 1fr auto;
+    grid-template-areas: "nav" "main" "foot";
+    width: 100vw;
+    height: 100vh;
+}
+
+nav { grid-area: nav; }
+
+main {
+    grid-area: main;
+    padding: 1rem;
+}
+
+footer {
+    grid-area: foot;
+    /*background-color: #f5f5f5;*/
+}
+
+footer .container {
+    display: flex;
+    flex-direction: column;
+}
+
+footer .container span:first-child { font-size: 0.95rem; }
+
+footer .container span:last-child { font-size: 0.9rem; }

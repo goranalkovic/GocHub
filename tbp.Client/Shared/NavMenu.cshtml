@@ -1,0 +1,26 @@
+﻿@using tbp.Shared.Models
+@inject Microsoft.AspNetCore.Blazor.Services.IUriHelper UriHelper
+@inject HttpClient Http
+    ﻿﻿
+<nav class="navbar sticky-top navbar-expand-sm navbar-dark bg-dark shadow-sm">
+    <a class="navbar-brand" href="#">GocHub</a>
+    <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+        <span class="navbar-toggler-icon"></span>
+    </button>
+    <div class="collapse navbar-collapse" id="navbarNav">
+        <ul class="navbar-nav">
+            <li class="nav-item">
+                <NavLink class="nav-link" href="" Match=NavLinkMatch.All>
+                    Home
+                </NavLink>
+            </li>
+
+            <li class="nav-item">
+                <NavLink class="nav-link" href="admin">
+                    User manager
+                </NavLink>
+            </li>
+        </ul>
+    </div>
+
+</nav>

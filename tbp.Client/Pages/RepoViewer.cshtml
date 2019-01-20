@@ -1,0 +1,332 @@
+﻿@page "/viewrepo/{ItemId:int}"
+﻿@using System.Text
+@using System.Diagnostics
+@using System.IO
+@using System.Security.Cryptography
+@using System.Text
+@using tbp.Shared.Models
+@inject HttpClient Http
+@inject Microsoft.AspNetCore.Blazor.Services.IUriHelper UriHelper
+
+<div class="container">
+
+    @if (LoggedInUser == null || repo == null)
+    {
+        <Spinner/>
+    }
+    else if (currentDocId != -1)
+    {
+        GetCurrentFileName(currentDocId);
+
+        <h4 class="mb-0 mt-0">@repo.Name</h4>
+        <small>@repo.Description</small>
+
+        <h6 class="text-muted mt-3">@repo.Name@currentPath@currentFileName</h6>
+
+
+        <button class="btn btn-light shadow-sm mt-3" type="button" onclick="@(() =>
+                                                                              {
+                                                                                  currentDocId = -1;
+                                                                                  LoadDocuments();
+                                                                                  StateHasChanged();
+                                                                              })">
+            <FabricIcon Glyph="ChromeBack" Style="text-primary"/> <span class="align-top">Back</span>
+        </button>
+        <br/>
+
+        <FileViewer ItemId="@currentDocId"/>
+    }
+    else
+    {
+        <h4 class="mb-0 mt-0">@repo.Name</h4>
+        <small>@repo.Description</small>
+
+        <FileSelect ref="multiFileSelect" IsMultiple="true"></FileSelect>
+
+        if (isUploading)
+        {
+            <div class="alert alert-secondary" role="alert">
+                <h4 class="alert-heading">Uploading</h4>
+                <p>Please wait</p>
+                <div style="height: 1rem"></div>
+                <p>
+                    <small>@remainingFiles file(s) remaining</small>
+                </p>
+
+                <div class="progress">
+                    <div class="progress-bar progress-bar-striped progress-bar-animated" role="progressbar" aria-valuenow="75" aria-valuemin="0" aria-valuemax="100" style="width: 75%"></div>
+                </div>
+            </div>
+        }
+        else
+        {
+            if (docs == null)
+            {
+                <Spinner/>
+            }
+            else
+            {
+                <div class="d-flex justify-content-between align-items-center">
+                    <h6 class="text-muted mt-3">@repo.Name@currentPath </h6>
+
+                    <div class="d-flex">
+
+                        @if (currentPath == "/")
+                        {
+                            <button type="button" class="btn btn-outline-danger btn-sm" onclick="@DeleteRepo">Delete repository</button>
+                        }
+
+                        <div class="input-group mx-3" style="width: 20rem">
+                            <div class="input-group-prepend">
+                                <span class="input-group-text">New folder</span>
+                            </div>
+                            <input type="text" class="form-control" aria-label="Folder name" aria-describedby="add-folder-btn" bind="@NewFolderName"/>
+                            <div class="input-group-append">
+                                <button class="btn btn-outline-secondary" type="button" id="add-folder-btn" onclick="@AddFolder">Add</button>
+                            </div>
+                        </div>
+
+                        <button class="btn btn-primary" onclick="@SelectFiles"><FabricIcon Glyph="VersionControlPush" /> Push files</button>
+                    </div>
+
+                </div>
+
+                <ul class="list-group mt-3">
+                    @if (currentPath != "/")
+                    {
+                        <li class="list-group-item d-flex justify-content-between align-items-center py-2">
+                            <button class="btn btn-link" onclick="@GoUpOne" type="button">
+                                <FabricIcon Glyph="Up"/> Up one level
+                            </button>
+                        </li>
+                    }
+
+                    @if (docs.Count < 1)
+                    {
+                        <li class="list-group-item d-flex justify-content-center align-items-center py-5">
+                            <div class="text-center">
+                                <h1>
+                                    <FabricIcon Glyph="BorderDot"/>
+                                </h1>
+                                <i>So empty in here...</i>
+                                <br/>
+                                <button class="btn btn-primary mt-5" onclick="@SelectFiles"><FabricIcon Glyph="VersionControlPush" /> Push files</button>
+                            </div>
+                        </li>
+                    }
+
+                    @foreach (var document in docs)
+                    {
+                        <li class="list-group-item d-flex justify-content-between align-items-center py-2">
+                            @if (document.FileType == "folder")
+                            {
+                                <button class="btn btn-link text-dark text-decoration-none" onclick="@(
+                                    () =>
+                                    {
+                                        currentPath = currentPath + (currentPath == "/" ? "" : "/") + document.FileName;
+                                        currentDocId = -1;
+                                        LoadDocuments();
+                                        StateHasChanged();
+                                    }
+                                                                                                           )" type="button">
+
+                                    <FabricIcon Glyph="FolderHorizontal" Style="transform: translateY(-0.1rem);" Class="text-warning"/>
+                                    @document.FileName
+                                </button>
+                            }
+                            else
+                            {
+                                <button class="btn btn-link text-dark text-decoration-none" onclick="@(
+                                    () =>
+                                    {
+                                        currentDocId = document.Id;
+                                        currentPath = document.Path;
+                                        StateHasChanged();
+                                    }
+                                                                                                           )" type="button">
+                                    @if (MonacoEditor.IsImage(document.FileType))
+                                    {
+                                        <FabricIcon Glyph="Photo2" Class="text-primary"/>
+                                    }
+                                    else
+                                    {
+                                        <FabricIcon Glyph="Page" Class="text-primary"/>
+                                    }
+
+                                    @document.FileName
+                                </button>
+                            }
+
+                                <div>
+                                    <small>@Helpers.ToRelativeDate(document.SysStartTime)</small>
+                                    <button class="btn btn-link text-danger" type="button" onclick="@(() => RemoveDocument(document.Id))">
+                                        <FabricIcon Glyph="Delete"/>
+                                    </button>
+                                </div>
+                        </li>
+                    }
+                </ul>
+            }
+        }
+    }
+
+
+
+</div>
+
+@functions
+{
+
+    [Parameter]
+    private int ItemId { get; set; }
+
+    Repository repo;
+    List<Document> docs;
+
+    private string NewFolderName { get; set; }
+
+    User LoggedInUser { get; set; }
+
+    int currentDocId = -1;
+    string currentPath = "/";
+    string currentFileName = "";
+
+    protected override void OnInit()
+    {
+        LoadUserData();
+
+        MonacoEditor.LastPage = $"/viewrepo/{ItemId}";
+    }
+
+    private async void GetCurrentFileName(int id)
+    {
+        currentFileName = await Http.GetStringAsync($"api/Document/nameof/{id}");
+        StateHasChanged();
+    }
+
+    private async void LoadUserData()
+    {
+        var cookie = await CookieManager.GetData("currentUser");
+        cookie = cookie == "" ? "-1" : cookie;
+        LoggedInUser = await Http.GetJsonAsync<User>($"api/User/{cookie}");
+
+        StateHasChanged();
+
+        LoadRepo();
+        LoadDocuments();
+    }
+
+    public async void LoadRepo()
+    {
+        repo = await Http.GetJsonAsync<Repository>($"api/Repository/{ItemId}");
+        StateHasChanged();
+    }
+
+    public async void LoadDocuments()
+    {
+        docs = await Http.PostJsonAsync<List<Document>>($"api/Document/inrepo/{ItemId}", currentPath);
+        StateHasChanged();
+    }
+
+    private async void DeleteRepo()
+    {
+        await Http.DeleteAsync($"api/Repository/{repo.Id}");
+
+        UriHelper.NavigateTo("/");
+    }
+
+
+    //////////
+
+    List<User> users;
+    List<Document> documents;
+    //List<Session> documents;
+    FileSelect fileSelect;
+    int totalFiles = 0;
+    int remainingFiles = 0;
+
+
+    public async void RemoveDocument(int id)
+    {
+        await Http.DeleteAsync($"api/Document/{id}");
+
+        LoadDocuments();
+    }
+
+    FileSelect multiFileSelect;
+    List<LoadedFile> loadFiles;
+
+    bool isUploading => loadFiles != null && loadFiles.Count > 0;
+
+    private async void AddFolder()
+    {
+        await Http.PostJsonAsync("api/Document", (Object) new Document
+        {
+            FileName = NewFolderName,
+            Path = currentPath,
+            FileType = "folder",
+            RepoId = repo.Id,
+            Contents = ""
+        });
+
+        LoadDocuments();
+
+        NewFolderName = "";
+    }
+
+    private void GoUpOne()
+    {
+        var modified = currentPath.Substring(0, currentPath.LastIndexOf('/'));
+
+        currentPath = modified != "" ? modified : "/";
+
+        StateHasChanged();
+        LoadDocuments();
+    }
+
+    void SelectFiles()
+    {
+        multiFileSelect.SelectFiles(async (selectedFiles) =>
+        {
+            loadFiles = selectedFiles.Select(file => new LoadedFile()
+            {
+                SelectedFile = file,
+                IsLoaded = false,
+                LoadedSize = 0
+            }).ToList();
+
+            totalFiles = loadFiles.Count;
+            remainingFiles = loadFiles.Count;
+
+            StateHasChanged();
+
+            foreach (var file in loadFiles)
+            {
+                using (var fileReader = multiFileSelect.GetFileReader(file.SelectedFile))
+                {
+                    var myFile = await fileReader.GetFileBytesAsync();
+
+                    var fileType = MonacoEditor.GetFileType(Path.GetExtension(fileReader.File.Name));
+
+                    await Http.PostJsonAsync("api/Document", new Document
+                    {
+                        FileName = fileReader.File.Name,
+                        Path = currentPath,
+                        FileType = fileType,
+                        RepoId = repo.Id,
+                        Contents = Convert.ToBase64String(myFile)
+                    });
+
+                    remainingFiles--;
+
+                    StateHasChanged();
+                }
+            }
+
+            loadFiles.Clear();
+
+            LoadDocuments();
+        });
+    }
+
+}

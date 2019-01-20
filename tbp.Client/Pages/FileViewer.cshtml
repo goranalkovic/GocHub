@@ -1,0 +1,185 @@
+﻿@inject HttpClient Http
+@inject Microsoft.AspNetCore.Blazor.Services.IUriHelper UriHelper
+@using System.Diagnostics
+@using System.Text
+@using Newtonsoft.Json
+@using tbp.Shared.Models
+@implements IDisposable
+
+<style>
+    .divided {
+        display: grid;
+        grid-template-columns: 1fr 20rem;
+        grid-column-gap: 1rem;
+    }
+</style>
+
+<div class="divided mt-3">
+    <div class="container">
+        <FileSelect ref="fileSelect"/>
+
+        @if (doc == null)
+        {
+            <p>
+                <Spinner/>
+            </p>
+        }
+        else if (MonacoEditor.IsImage(doc.FileType))
+        {
+            if (doc.FileType == "svg")
+            {
+                <img src="data:image/svg+xml;base64, @doc.Contents" alt="@doc.FileName" class="img-thumbnail" style="max-height: 300px"/>
+            }
+            else
+            {
+                <img src="data:image/@doc.FileType;base64, @doc.Contents" alt="@doc.FileName" class="img-thumbnail" style="max-height: 300px"/>
+            }
+        }
+        else
+        {
+            <div id="@editorId" style="height: 600px; width: 900px" class="shadow-sm">
+            </div>
+        }
+
+    </div>
+    <div class="container">
+        @if (doc != null)
+        {
+            <small class="ml-2">
+                <em>Last modified</em>
+                <em>@Helpers.ToRelativeDate(doc.SysStartTime)</em>
+            </small>
+            <br/>
+
+            <button class="btn btn-link text-success mt-2" type="button" onclick="@ReplaceFile">
+                <FabricIcon Glyph="BranchCommit"/> <span class="align-top">Commit new version</span>
+            </button>
+
+            if (doc.FileType != null && doc.FileType != "svg" && doc.FileType != "folder" && !MonacoEditor.IsImage(doc.FileType))
+            {
+                <button class="btn btn-link text-info mt-2" type="button" onclick="@SaveChanges">
+                    <FabricIcon Glyph="Save"/> <span class="align-top">Commit editor changes</span>
+                </button>
+            }
+
+            <hr/>
+
+            <h5 class="text-primary">
+                <FabricIcon Glyph="BranchCompare"/> <span class="align-top">All commits</span>
+            </h5>
+
+            if (docHistory == null)
+            {
+                <Spinner/>
+            }
+            else if (docHistory.Count == 0)
+            {
+                <em>No commits yet</em>
+            }
+            else
+            {
+                <ul class="list-group">
+
+                    @foreach (var historyItem in docHistory)
+                    {
+                        <li class="list-group-item">
+                            Valid from @historyItem.SysStartTime <br/> to @historyItem.SysEndTime <br/>
+                            <button type="button" class="btn btn-secondary btn-sm"> <FabricIcon Glyph="DiffInline"/> Compare to current</button>
+                        </li>
+                    }
+                </ul>
+            }
+        }
+    </div>
+</div>
+
+
+@functions {
+    string editorId = "editor-single";
+
+    Document doc;
+    List<Document> docHistory;
+    bool hasEditor;
+
+    [Parameter]
+    private int ItemId { get; set; }
+
+    FileSelect fileSelect;
+
+    private async void SaveChanges()
+    {
+        doc.Contents = await MonacoEditor.GetData(editorId);
+
+        await Http.PutJsonAsync($"api/Document/{ItemId}", (object) new Document
+        {
+            Id = doc.Id,
+            FileType = doc.FileType,
+            SysStartTime = doc.SysStartTime,
+            SysEndTime = doc.SysEndTime,
+            FileName = doc.FileName,
+            Path = doc.Path,
+            Contents = doc.Contents,
+            RepoId = doc.RepoId
+        });
+
+        doc = await Http.GetJsonAsync<Document>($"api/Document/{ItemId}");
+
+        await MonacoEditor.ChangeValue(editorId, Encoding.UTF8.GetString(Convert.FromBase64String(doc.Contents)));
+
+        StateHasChanged();
+    }
+
+    private async void LoadData()
+    {
+        doc = await Http.GetJsonAsync<Document>($"api/Document/{ItemId}");
+        docHistory = await Http.GetJsonAsync<List<Document>>($"api/Document/history/{ItemId}");
+
+        StateHasChanged();
+    }
+
+    protected override async Task OnAfterRenderAsync()
+    {
+        LoadData();
+
+        if (!hasEditor && doc != null && !MonacoEditor.IsImage(doc.FileType))
+        {
+            await MonacoEditor.CreateEditor(editorId, doc.FileType, Encoding.UTF8.GetString(Convert.FromBase64String(doc.Contents)));
+            hasEditor = true;
+        }
+    }
+
+    public void Dispose()
+    {
+        MonacoEditor.RemoveEditor(editorId);
+    }
+
+    private void ReplaceFile()
+    {
+        fileSelect.SelectFiles(async (selectedFiles) =>
+        {
+            var file = selectedFiles.First();
+
+            using (var fileReader = fileSelect.GetFileReader(file))
+            {
+                var fileContent = await fileReader.GetFileBytesAsync();
+
+                await Http.PutJsonAsync($"api/Document/{doc.Id}", (Object) new Document
+                {
+                    FileType = doc.FileType,
+                    Id = doc.Id,
+                    FileName = doc.FileName,
+                    Path = doc.Path,
+                    RepoId = doc.RepoId,
+                    Contents = Convert.ToBase64String(fileContent)
+                });
+
+                doc = await Http.GetJsonAsync<Document>($"api/Document/{ItemId}");
+
+                await MonacoEditor.ChangeValue(editorId, Encoding.UTF8.GetString(Convert.FromBase64String(doc.Contents)));
+
+                StateHasChanged();
+            }
+        });
+    }
+
+}

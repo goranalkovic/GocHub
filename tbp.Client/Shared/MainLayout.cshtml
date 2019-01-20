@@ -1,0 +1,175 @@
+﻿@using tbp.Shared.Models
+@inherits BlazorLayoutComponent
+@inject Microsoft.AspNetCore.Blazor.Services.IUriHelper UriHelper
+@inject HttpClient Http
+
+<div class="container">
+    <div class="row align-items-center my-4">
+        <div class="col text-sm-center text-md-left">
+            <a class="text-decoration-none" href="/">
+                <h1 class="text-dark"><FabricIcon Glyph="BranchSearch" Class="text-primary"/> GocHub</h1>
+            </a>
+
+        </div>
+        @if (LoggedInUser != null && LoggedInUser.Id != -1)
+        {
+            <div class="col-md text-sm-center text-md-right">
+                <span class="badge shadow-sm p-2" style="font-size: 1rem; font-weight: 300">
+                    <FabricIcon Glyph="Contact"/> @LoggedInUser.Username</span>
+            </div>
+        }
+    </div>
+
+
+    @if (LoggedInUser == null)
+    {
+        <Spinner/>
+    }
+    else if (LoggedInUser.Id == -1)
+    {
+        <div class="row justify-content-center">
+            <form>
+                <h4>Sign in</h4>
+                <div class="form-group">
+                    <label for="username">Username</label>
+                    <input type="text" aria-label="Username" class="form-control @UsernameValidClass" id="username" bind="@_username" onblur="@ValidateUsername"/>
+                    @if (!_isUsernameValid && _username.Length > 0)
+                    {
+                        <div class="invalid-feedback">
+                            That user doesn't exist
+                        </div>
+                    }
+                </div>
+
+                <div class="form-group">
+                    <label for="pass">Password</label>
+                    <input type="password" aria-label="Password" class="form-control @PasswordValidClass" id="pass" bind="@_password" onblur="@ValidateUser"/>
+                    @if (!_isPasswordValid && _password.Length > 0 && _username.Length > 0)
+                    {
+                        <div class="invalid-feedback">
+                            Check your password
+                        </div>
+                    }
+                </div>
+
+                @if (_isUserValid)
+                {
+                    <button class="btn btn-primary" type="button" onclick="@PickUser">Sign in</button>
+                }
+                else
+                {
+                    <button class="btn btn-primary" type="button" disabled onclick="@PickUser">Sign in</button>
+                }
+            </form>
+        </div>
+    }
+    else
+    {
+        @Body
+    }
+
+</div>
+
+<footer class="footer mt-auto py-3">
+
+    <div class="container">
+        <div class="row justify-content-between align-items-center py-2">
+            <div class="col-8">
+                <span class="text-muted">CodeHub © Goran Alković, 2019</span> <br/>
+                <span class="text-muted">A project for the <em>Database Theory (Teorija baza podataka)</em> course.</span>
+            </div>
+            <div class="col-4 text-right">
+                @if (LoggedInUser != null && LoggedInUser.Id != -1)
+                {
+                    <button type="button" class="btn btn-light btn-sm" onclick="@SignOut">Sign out</button>
+                }
+                <a class="btn btn-light btn-sm" href="/admin">
+                    User manager
+                </a>
+            </div>
+        </div>
+
+    </div>
+</footer>
+
+@functions
+{
+    string _username = "", _password = "";
+
+    bool _isUsernameValid = false;
+    bool _isPasswordValid = false;
+
+    bool _isUserValid => _isUsernameValid && _isPasswordValid;
+
+
+    string UsernameValidClass => _username.Length < 1 ? "" : _isUsernameValid ? "is-valid" : "is-invalid";
+    string PasswordValidClass => _password.Length < 1 ? "" : _isPasswordValid ? "is-valid" : "is-invalid";
+
+    private async void ValidateUsername()
+    {
+        _isUsernameValid = await Http.PostJsonAsync<bool>("api/User/checkusername", _username);
+
+        StateHasChanged();
+    }
+
+
+    private async void ValidateUser()
+    {
+        var user = await Http.PostJsonAsync<User>("api/User/login", new[] {_username, _password});
+        if (user.Id == -1)
+        {
+            _isPasswordValid = false;
+        }
+        else
+        {
+            _isPasswordValid = true;
+        }
+
+        StateHasChanged();
+    }
+
+    private async void SignOut()
+    {
+        await CookieManager.Set("currentUser", "");
+
+        LoadData();
+
+        StateHasChanged();
+    }
+
+    private async void PickUser()
+    {
+        LoggedInUser = await Http.PostJsonAsync<User>("api/User/login", new[] {_username, _password});
+
+        if (_isUsernameValid && _isPasswordValid)
+        {
+            _username = "";
+            _password = "";
+
+            await CookieManager.Set("currentUser", $"{LoggedInUser.Id}");
+
+            LoadData();
+        }
+
+        StateHasChanged();
+    }
+
+
+    User LoggedInUser { get; set; }
+
+
+    protected override void OnInit()
+    {
+        LoadData();
+    }
+
+    private async void LoadData()
+    {
+        var cookie = await CookieManager.GetData("currentUser");
+        cookie = cookie == "" ? "-1" : cookie;
+        LoggedInUser = await Http.GetJsonAsync<User>($"api/User/{cookie}");
+
+        StateHasChanged();
+    }
+
+}

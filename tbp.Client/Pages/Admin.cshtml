@@ -1,0 +1,179 @@
+﻿@page "/admin"
+﻿@using System.Diagnostics
+@using System.IO
+@using tbp.Shared.Models
+@inject Microsoft.AspNetCore.Blazor.Services.IUriHelper UriHelper
+
+@inject HttpClient Http
+
+<style>
+    .divided {
+        display: grid;
+        grid-template-columns: 1fr 15rem;
+        grid-column-gap: 1rem;
+    }
+</style>
+
+<div class="divided">
+    <div class="container">
+        <h1>User manager</h1>
+        
+        <div class="input-group pb-3">
+            <div class="input-group-prepend">
+                <span class="input-group-text">Add an user</span>
+            </div>
+            <input type="text" aria-label="First and last name" class="form-control" placeholder="Name" bind="@newUser.Name"/>
+            <input type="email" aria-label="E-mail" class="form-control" placeholder="E-mail" bind="@newUser.Email"/>
+            <input type="text" aria-label="Username" class="form-control" placeholder="Username" bind="@newUser.Username"/>
+            <input type="password" aria-label="Password" class="form-control" placeholder="Password" bind="@newUser.Password"/>
+
+            <div class="input-group-append">
+                <button class="btn btn-primary" type="button" onclick="@AddUser">Add</button>
+            </div>
+        </div>
+
+        @if (users == null)
+        {
+            <p style="margin: auto;">
+                <Spinner/>
+            </p>
+        }
+        else if (users.Count < 1)
+        {
+            <h4>
+                No users yet!
+            </h4>
+        }
+        else
+        {
+            <ul class="list-group">
+                @foreach (var user in users)
+                {
+                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                        @user.Name
+                        <br>
+                        @user.Password
+                        <div>
+                            <span class="badge badge-primary badge-pill">@@ @user.Username</span>
+                            <button class="btn btn-danger btn-sm icon-btn-sm" onclick="@(() => RemoveUser(user.Id))">
+                                <FabricIcon Glyph="Delete"/>
+                            </button>
+                        </div>
+                    </li>
+                }
+            </ul>
+        }
+    </div>
+    <div class="container">
+        <p>
+            <em>A description can appear here</em>
+        </p>
+    </div>
+</div>
+
+
+@functions {
+    List<User> users;
+    List<Document> documents;
+    //List<Session> documents;
+    FileSelect fileSelect;
+    int totalFiles = 0;
+    int remainingFiles = 0;
+
+    User newUser = new User();
+
+    protected override async Task OnInitAsync()
+    {
+        new Task(LoadUsers).Start();
+        new Task(LoadDocuments).Start();
+    }
+
+    public async void LoadUsers()
+    {
+        users = await Http.GetJsonAsync<List<User>>("api/User");
+        StateHasChanged();
+    }
+
+    public async void LoadDocuments()
+    {
+        documents = await Http.GetJsonAsync<List<Document>>("api/Document/info");
+        StateHasChanged();
+    }
+
+    public async void AddUser()
+    {
+        await Http.PostJsonAsync("api/User", newUser);
+
+
+        newUser = new User();
+
+        LoadUsers();
+    }
+
+    public async void RemoveUser(int id)
+    {
+        await Http.DeleteAsync($"api/User/{id}");
+
+        LoadUsers();
+    }
+
+    public async void RemoveDocument(int id)
+    {
+        await Http.DeleteAsync($"api/Document/{id}");
+
+        LoadDocuments();
+    }
+
+    FileSelect multiFileSelect;
+    List<LoadedFile> loadFiles;
+
+    bool isUploading => loadFiles != null && loadFiles.Count > 0;
+
+    void SelectFiles()
+    {
+        multiFileSelect.SelectFiles(async (selectedFiles) =>
+        {
+            loadFiles = selectedFiles.Select(file => new LoadedFile()
+            {
+                SelectedFile = file,
+                IsLoaded = false,
+                LoadedSize = 0
+            }).ToList();
+
+            totalFiles = loadFiles.Count;
+            remainingFiles = loadFiles.Count;
+
+            StateHasChanged();
+
+            foreach (var file in loadFiles)
+            {
+                using (var fileReader = multiFileSelect.GetFileReader(file.SelectedFile))
+                {
+                    var myFile = await fileReader.GetFileBytesAsync();
+
+                    var fileType = MonacoEditor.GetFileType(Path.GetExtension(fileReader.File.Name));
+
+                    await Http.PostJsonAsync("api/Document", new Document
+                    {
+                        FileName = fileReader.File.Name,
+                        Path = "test",
+                        FileType = fileType,
+                        RepoId = 0,
+                        Contents = Convert.ToBase64String(myFile)
+                    });
+
+                    remainingFiles--;
+
+                    StateHasChanged();
+                }
+            }
+
+            loadFiles.Clear();
+
+            LoadDocuments();
+        });
+    }
+
+   
+
+}
