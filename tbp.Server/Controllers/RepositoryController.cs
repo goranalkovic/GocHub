@@ -62,6 +62,14 @@ namespace tbp.Server.Controllers
             {
                 var doc = _context.Repository.First(d => d.Id == id);
                 _context.Remove(doc);
+
+                var repoDocs = _context.Document.Where(d => d.RepoId == id);
+
+                foreach (var docToRemove in repoDocs)
+                {
+                    _context.Document.Remove(docToRemove);
+                }
+
                 _context.SaveChanges();
             }
             catch (Exception e)

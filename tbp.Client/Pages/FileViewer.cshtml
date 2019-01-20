@@ -19,34 +19,54 @@
 
 
     <div class="container">
-        <FileSelect ref="fileSelect" />
+        <FileSelect ref="fileSelect"/>
 
         @if (repo != null && doc != null)
         {
-
             <h4 class="mb-0 mt-0">@repo.Name</h4>
             <small>@repo.Description</small>
 
-            var newPath = doc.Path == "/" ? "/" : doc.Path + "/"; 
+            var newPath = doc.Path == "/" ? "/" : doc.Path + "/";
 
             <h6 class="text-muted mt-3">@repo.Name@newPath@doc.FileName</h6>
+
+            <div class="d-flex my-4">
+                <button type="button" class="btn btn-outline-secondary" onclick="@(async () => { await Helpers.UpOneLevel(); })">
+                    <FabricIcon Glyph="Back" /> <span>Back</span>
+                </button>
+                
+                <button class="btn btn-outline-success mx-3" type="button" onclick="@ReplaceFile">
+                    <FabricIcon Glyph="BranchCommit"/> <span class="align-top">Commit new version</span>
+                </button>
+
+                @if (doc.FileType != null && doc.FileType != "svg" && doc.FileType != "folder" && !MonacoEditor.IsImage(doc.FileType))
+                {
+                <button class="btn btn-outline-info mr-3" type="button"y onclick="@SaveChanges">
+                    <FabricIcon Glyph="Save"/> <span class="align-top">Commit editor changes</span>
+                </button>
+                }
+                
+                <small class="ml-auto my-auto align-middle">
+                    <em>Last modified @Helpers.ToRelativeDate(doc.SysStartTime)</em>
+                </small>
+            </div>
         }
 
         @if (doc == null)
         {
             <p>
-                <Spinner />
+                <Spinner/>
             </p>
         }
         else if (MonacoEditor.IsImage(doc.FileType))
         {
             if (doc.FileType == "svg")
             {
-                <img src="data:image/svg+xml;base64, @doc.Contents" alt="@doc.FileName" class="img-thumbnail" style="max-height: 300px" />
+                <img src="data:image/svg+xml;base64, @doc.Contents" alt="@doc.FileName" class="img-thumbnail" style="max-height: 300px"/>
             }
             else
             {
-                <img src="data:image/@doc.FileType;base64, @doc.Contents" alt="@doc.FileName" class="img-thumbnail" style="max-height: 300px" />
+                <img src="data:image/@doc.FileType;base64, @doc.Contents" alt="@doc.FileName" class="img-thumbnail" style="max-height: 300px"/>
             }
         }
         else
@@ -60,26 +80,6 @@
 
         @if (doc != null)
         {
-            <small class="ml-3">
-                <b>Last modified</b>
-                <em>@Helpers.ToRelativeDate(doc.SysStartTime)</em>
-            </small>
-            <br/>
-
-            <button class="btn btn-link text-success mt-2" type="button" onclick="@ReplaceFile">
-                <FabricIcon Glyph="BranchCommit"/> <span class="align-top">Commit new version</span>
-            </button>
-
-            if (doc.FileType != null && doc.FileType != "svg" && doc.FileType != "folder" && !MonacoEditor.IsImage(doc.FileType))
-            {
-                <button class="btn btn-link text-info mt-2" type="button" onclick="@SaveChanges">
-                    <FabricIcon Glyph="Save"/> <span class="align-top">Commit editor changes</span>
-                </button>
-            }
-
-            <hr/>
-
-
             <h6 class="text-primary">
                 <FabricIcon Glyph="BranchCompare"/> <span class="align-top">All commits</span>
             </h6>
@@ -98,7 +98,6 @@
 
                     @foreach (var historyItem in docHistory)
                     {
-
                         //var docPrev = await Http.PostJsonAsync<Document>($"api/Document/prev/{doc.Id}", historyItem.SysEndTime);
 
                         <a class="list-group-item list-group-item-action p-2 px-3" href="/viewdiff/@doc.Id/@docHistory.IndexOf(historyItem)"> From @historyItem.SysEndTime.ToShortDateString() @historyItem.SysEndTime.ToShortTimeString()</a>

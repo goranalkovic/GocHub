@@ -146,6 +146,22 @@ namespace tbp.Server.Controllers
             {
                 var doc = _context.Document.First(d => d.Id == id);
                 _context.Remove(doc);
+
+                // If folder, delete all contents
+                if (doc.FileType == "folder")
+                {
+                    var newPath = doc.Path + "/" + doc.FileName;
+
+                    if (doc.Path == "/") newPath = $"/{doc.FileName}";
+                    
+                    var docs = _context.Document.Where(d => d.Path.Contains(newPath));
+
+                    foreach (var docToRemove in docs)
+                    {
+                        _context.Document.Remove(docToRemove);
+                    }
+                }
+
                 _context.SaveChanges();
             }
             catch (Exception e)
