@@ -25,3 +25,8 @@ window.reloadPage = function () {
     location.reload();
     return true;
 }
+
+window.upOneLevel = function() {
+    history.back(-1);
+    return true;
+}

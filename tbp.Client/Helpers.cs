@@ -2,11 +2,15 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using Microsoft.JSInterop;
 
 namespace tbp.Client
 {
     public class Helpers
     {
+        
+        public static Task<bool> UpOneLevel() => JSRuntime.Current.InvokeAsync<bool>("upOneLevel");
+
         static readonly SortedList<double, Func<TimeSpan, string>> Offsets = 
             new SortedList<double, Func<TimeSpan, string>>
             {

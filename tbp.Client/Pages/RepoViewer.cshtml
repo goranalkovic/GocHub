@@ -1,4 +1,4 @@
-﻿@page "/viewrepo/{ItemId:int}"
+﻿@page "/viewrepo/{ItemId:int}/{ViewPath}"
 ﻿@using System.Text
 @using System.Diagnostics
 @using System.IO
@@ -14,28 +14,20 @@
     {
         <Spinner/>
     }
-    else if (currentDocId != -1)
+    @*else if (currentDocId != -1)
     {
         GetCurrentFileName(currentDocId);
 
         <h4 class="mb-0 mt-0">@repo.Name</h4>
         <small>@repo.Description</small>
 
+        var currentPath = ViewPath.Replace("root", "");
+        currentPath = currentPath.Replace(folderUrlSeparator, "/");
+
         <h6 class="text-muted mt-3">@repo.Name@currentPath@currentFileName</h6>
-
-
-        <button class="btn btn-light shadow-sm mt-3" type="button" onclick="@(() =>
-                                                                              {
-                                                                                  currentDocId = -1;
-                                                                                  LoadDocuments();
-                                                                                  StateHasChanged();
-                                                                              })">
-            <FabricIcon Glyph="ChromeBack" Style="text-primary"/> <span class="align-top">Back</span>
-        </button>
-        <br/>
-
+        
         <FileViewer ItemId="@currentDocId"/>
-    }
+    }*@
     else
     {
         <h4 class="mb-0 mt-0">@repo.Name</h4>
@@ -65,13 +57,18 @@
                 <Spinner/>
             }
             else
-            {
+            { 
+                var currentPath = ViewPath.Replace("root", "");
+                currentPath = currentPath.Replace(folderUrlSeparator, "/");
+
                 <div class="d-flex justify-content-between align-items-center">
-                    <h6 class="text-muted mt-3">@repo.Name@currentPath </h6>
+                   
+
+                    <h6 class="text-muted mt-3">@repo.Name@currentPath</h6>
 
                     <div class="d-flex">
 
-                        @if (currentPath == "/")
+                        @if (ViewPath == "root")
                         {
                             <button type="button" class="btn btn-outline-danger btn-sm" onclick="@DeleteRepo">Delete repository</button>
                         }
@@ -86,13 +83,13 @@
                             </div>
                         </div>
 
-                        <button class="btn btn-primary" onclick="@SelectFiles"><FabricIcon Glyph="VersionControlPush" /> Push files</button>
+                        <button class="btn btn-primary" onclick="@SelectFiles"><FabricIcon Glyph="VersionControlPush"/> Push files</button>
                     </div>
 
                 </div>
 
                 <ul class="list-group mt-3">
-                    @if (currentPath != "/")
+                    @if (ViewPath != "root")
                     {
                         <li class="list-group-item d-flex justify-content-between align-items-center py-2">
                             <button class="btn btn-link" onclick="@GoUpOne" type="button">
@@ -110,7 +107,7 @@
                                 </h1>
                                 <i>So empty in here...</i>
                                 <br/>
-                                <button class="btn btn-primary mt-5" onclick="@SelectFiles"><FabricIcon Glyph="VersionControlPush" /> Push files</button>
+                                <button class="btn btn-primary mt-5" onclick="@SelectFiles"><FabricIcon Glyph="VersionControlPush"/> Push files</button>
                             </div>
                         </li>
                     }
@@ -120,30 +117,23 @@
                         <li class="list-group-item d-flex justify-content-between align-items-center py-2">
                             @if (document.FileType == "folder")
                             {
-                                <button class="btn btn-link text-dark text-decoration-none" onclick="@(
-                                    () =>
-                                    {
-                                        currentPath = currentPath + (currentPath == "/" ? "" : "/") + document.FileName;
-                                        currentDocId = -1;
-                                        LoadDocuments();
-                                        StateHasChanged();
-                                    }
-                                                                                                           )" type="button">
+                                <button type="button" class="btn btn-link text-dark text-decoration-none" onclick="@(() =>
+                                                                                                                     {
+                                                                                                                         currentPath = ViewPath + folderUrlSeparator + document.FileName;
+
+                                                                                                                         var link = $"/viewrepo/{document.RepoId}/{currentPath}";
+                                                                                                                         updated = false;
+                                                                                                                         UriHelper.NavigateTo(link);
+                                                                                                                     })">
 
                                     <FabricIcon Glyph="FolderHorizontal" Style="transform: translateY(-0.1rem);" Class="text-warning"/>
                                     @document.FileName
+
                                 </button>
                             }
                             else
                             {
-                                <button class="btn btn-link text-dark text-decoration-none" onclick="@(
-                                    () =>
-                                    {
-                                        currentDocId = document.Id;
-                                        currentPath = document.Path;
-                                        StateHasChanged();
-                                    }
-                                                                                                           )" type="button">
+                                <a class="btn btn-link text-dark text-decoration-none" href="/viewfile/@document.Id">
                                     @if (MonacoEditor.IsImage(document.FileType))
                                     {
                                         <FabricIcon Glyph="Photo2" Class="text-primary"/>
@@ -154,15 +144,15 @@
                                     }
 
                                     @document.FileName
-                                </button>
+                                </a>
                             }
 
-                                <div>
-                                    <small>@Helpers.ToRelativeDate(document.SysStartTime)</small>
-                                    <button class="btn btn-link text-danger" type="button" onclick="@(() => RemoveDocument(document.Id))">
-                                        <FabricIcon Glyph="Delete"/>
-                                    </button>
-                                </div>
+                            <div>
+                                <small>@Helpers.ToRelativeDate(document.SysStartTime)</small>
+                                <button class="btn btn-link text-danger" type="button" onclick="@(() => RemoveDocument(document.Id))">
+                                    <FabricIcon Glyph="Delete"/>
+                                </button>
+                            </div>
                         </li>
                     }
                 </ul>
@@ -177,8 +167,13 @@
 @functions
 {
 
+        const string folderUrlSeparator = "_";
+
     [Parameter]
     private int ItemId { get; set; }
+
+    [Parameter]
+    private string ViewPath { get; set; }
 
     Repository repo;
     List<Document> docs;
@@ -188,14 +183,24 @@
     User LoggedInUser { get; set; }
 
     int currentDocId = -1;
-    string currentPath = "/";
     string currentFileName = "";
 
     protected override void OnInit()
     {
         LoadUserData();
 
-        MonacoEditor.LastPage = $"/viewrepo/{ItemId}";
+    //MonacoEditor.LastPage = $"/viewrepo/{ItemId}";
+    }
+
+    bool updated;
+
+    protected override void OnAfterRender()
+    {
+        if (!updated || ViewPath == "root")
+        {
+            LoadDocuments();
+            updated = true;
+        }
     }
 
     private async void GetCurrentFileName(int id)
@@ -224,8 +229,23 @@
 
     public async void LoadDocuments()
     {
-        docs = await Http.PostJsonAsync<List<Document>>($"api/Document/inrepo/{ItemId}", currentPath);
-        StateHasChanged();
+        docs?.Clear();
+
+        if (ViewPath == "root")
+        {
+            docs = await Http.PostJsonAsync<List<Document>>($"api/Document/inrepo/{ItemId}", "/");
+
+            StateHasChanged();
+        }
+        else
+        {
+            var newPath = ViewPath.Replace("root", "");
+            newPath = newPath.Replace(folderUrlSeparator, "/");
+
+            docs = await Http.PostJsonAsync<List<Document>>($"api/Document/inrepo/{ItemId}", newPath);
+
+            StateHasChanged();
+        }
     }
 
     private async void DeleteRepo()
@@ -260,6 +280,9 @@
 
     private async void AddFolder()
     {
+        var currentPath = ViewPath.Replace("root", "");
+        currentPath = currentPath.Replace(folderUrlSeparator, "/");
+
         await Http.PostJsonAsync("api/Document", (Object) new Document
         {
             FileName = NewFolderName,
@@ -274,14 +297,12 @@
         NewFolderName = "";
     }
 
-    private void GoUpOne()
+    private async void GoUpOne()
     {
-        var modified = currentPath.Substring(0, currentPath.LastIndexOf('/'));
+        updated = false;
 
-        currentPath = modified != "" ? modified : "/";
 
-        StateHasChanged();
-        LoadDocuments();
+        await Helpers.UpOneLevel();
     }
 
     void SelectFiles()
@@ -308,10 +329,13 @@
 
                     var fileType = MonacoEditor.GetFileType(Path.GetExtension(fileReader.File.Name));
 
+                    var newPath = ViewPath.Replace("root", "");
+                    newPath = newPath.Replace(folderUrlSeparator, "/");
+
                     await Http.PostJsonAsync("api/Document", new Document
                     {
                         FileName = fileReader.File.Name,
-                        Path = currentPath,
+                        Path = newPath,
                         FileType = fileType,
                         RepoId = repo.Id,
                         Contents = Convert.ToBase64String(myFile)
