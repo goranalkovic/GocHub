@@ -32,7 +32,7 @@
                 <h4>Sign in</h4>
                 <div class="form-group">
                     <label for="username">Username</label>
-                    <input type="text" aria-label="Username" class="form-control @UsernameValidClass" id="username" bind="@_username" onblur="@ValidateUsername"/>
+                    <input type="text" aria-label="Username" class="form-control @UsernameValidClass" id="username" bind="@_username" onblur="@ValidateUsername" />
                     @if (!_isUsernameValid && _username.Length > 0)
                     {
                         <div class="invalid-feedback">
@@ -43,7 +43,7 @@
 
                 <div class="form-group">
                     <label for="pass">Password</label>
-                    <input type="password" aria-label="Password" class="form-control @PasswordValidClass" id="pass" bind="@_password" onblur="@ValidateUser"/>
+                    <input type="password" aria-label="Password" class="form-control @PasswordValidClass" id="pass" bind="@_password" onblur="@ValidateUser" />
                     @if (!_isPasswordValid && _password.Length > 0 && _username.Length > 0)
                     {
                         <div class="invalid-feedback">
@@ -60,6 +60,26 @@
                 {
                     <button class="btn btn-primary" type="button" disabled onclick="@PickUser">Sign in</button>
                 }
+
+                <hr />
+
+                <h4 class="mt-5">Sign up</h4>
+
+                <div class="input-group pb-3">
+                    @*<div class="input-group-prepend">
+                <span class="input-group-text">Add an user</span>
+            </div>*@
+                    <input type="text" aria-label="First and last name" class="form-control" placeholder="Name" bind="@newUser.Name" />
+                    <input type="email" aria-label="E-mail" class="form-control" placeholder="E-mail" bind="@newUser.Email" />
+                    <input type="text" aria-label="Username" class="form-control" placeholder="Username" bind="@newUser.Username" />
+                    <input type="password" aria-label="Password" class="form-control" placeholder="Password" bind="@newUser.Password" />
+
+                    <div class="input-group-append">
+                        <button class="btn btn-primary" type="button" onclick="@AddUser">Add and sign in</button>
+                    </div>
+                </div>
+
+
             </form>
         </div>
     }
@@ -101,6 +121,8 @@
 
     bool _isUserValid => _isUsernameValid && _isPasswordValid;
 
+    User newUser = new User();
+
 
     string UsernameValidClass => _username.Length < 1 ? "" : _isUsernameValid ? "is-valid" : "is-invalid";
     string PasswordValidClass => _password.Length < 1 ? "" : _isPasswordValid ? "is-valid" : "is-invalid";
@@ -110,6 +132,21 @@
         _isUsernameValid = await Http.PostJsonAsync<bool>("api/User/checkusername", _username);
 
         StateHasChanged();
+    }
+
+    public async void AddUser()
+    {
+        await Http.PostJsonAsync("api/User", newUser);
+
+        var user = await Http.PostJsonAsync<User>("api/User/login", new[] {newUser.Username, newUser.Password});
+
+        await CookieManager.Set("currentUser", $"{user.Id}");
+
+        LoadData();
+
+        newUser = new User();
+
+    UriHelper.NavigateTo("/");
     }
 
 
@@ -135,7 +172,7 @@
         LoadData();
 
         //StateHasChanged();
-        
+
         UriHelper.NavigateTo("/");
 
     }

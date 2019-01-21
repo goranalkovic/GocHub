@@ -81,13 +81,16 @@
 
     private async void LoadDiffData()
     {
-        doc = await Http.GetJsonAsync<Document>($"api/Document/{ItemId}");
-        docHistory = await Http.GetJsonAsync<List<Document>>($"api/Document/history/{ItemId}");
+        if (doc == null)
+        {
+            doc = await Http.GetJsonAsync<Document>($"api/Document/{ItemId}");
+            docHistory = await Http.GetJsonAsync<List<Document>>($"api/Document/history/{ItemId}");
 
-        docPrev = await Http.PostJsonAsync<Document>($"api/Document/prev/{doc.Id}", docHistory[OldDiff].SysEndTime);
+            docPrev = await Http.PostJsonAsync<Document>($"api/Document/prev/{doc.Id}", docHistory[OldDiff].SysEndTime);
 
 
-        StateHasChanged();
+            StateHasChanged();
+        }
     }
 
     protected override async Task OnAfterRenderAsync()
