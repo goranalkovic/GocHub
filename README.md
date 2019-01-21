@@ -10,7 +10,7 @@ Exploration of Blazor + ASP.NET Core API + MS SQL Server 2019 Temporal databases
 - Visual Studio 2017 __with__ the _Blazor Language services_ extension
 
 ### Steps
-- open SSMS and import the database (will be uploaded soon)
+- open SSMS and import the database ( [Database script](https://github.com/goranalkovic/GocHub/blob/dev/Database/GenerateDb.sql) )
 - import the project from GitHub
-- in the `tbp.Server/tbpdbContext.cs`, change the connection string in `optionsBuilder.UseSqlServer( (...) );` to match your local instance
-- run the app!
+- in the [`tbp.Server/tbpdbContext.cs`](https://github.com/goranalkovic/GocHub/blob/dev/tbp.Server/tbpdbContext.cs), check the connection string and change accordingly
+- run the app (the default project should be `tbp.Server`)
